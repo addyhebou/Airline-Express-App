@@ -191,6 +191,66 @@ app.delete('/customers/:id', async (req, res) => {
   }
 });
 
+//Purchase a ticket
+app.post('/tickets/customer/:customer/flight/:flightNum/airline/:airline/ ', async (req, res) => {
+    try {
+      const {id} = req.params;
+      const ticket= req.body;
+      const ticketQuery = await pool.query(
+        'INSERT INTO public.ticket VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [ticket.ticket_ID, ticket.sold_price, ticket.date, ticket.time, ticket.time, ticket.card_type, ticket.card_number, ticket.name_on_card, ticket.exp_date]
+      );
+  
+      res.json(ticketQuery);
+    } catch (error) {
+      console.log(error.message);
+    }
+  });
+
+// Selecting all flights from a customer 
+app.get('/customers/flights/:id', async (req, res) => {
+  try {
+    const {id} = req.params;
+    const flightsQuery = await pool.query(
+      'SELECT * from public.purchase WHERE email = $1',
+      [id]
+    );
+    res.json(flightsQuery.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// Calculating the total amount of money a customer spent on flights
+app.get('/customers/flights/:id', async (req, res) => {
+  try {
+    const {id} = req.params;
+    const priceQuery = await pool.query(
+      'SELECT sum(sold_price) from public.purchase WHERE email = $1',
+      [id]
+    );
+    res.json(priceQuery);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// Grabbing the most frequent customer for a specific airline
+app.get('/customers/airlines/:airline', async (req, res) => {
+  try {
+    const {airline} = req.params;
+    const frequentFlyerQuery = await pool.query(
+      'SELECT name FROM public.purchase natural join public.customer WHERE airline = $1 and email NOT IN\
+      (SELECT A.email FROM public.purchase as A and public.purchase as B WHERE \
+      COUNT(distint A.email) < COUNT(distint B.email));',
+      [airline]
+    );
+    res.json(frequentFlyerQuery);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
 app.listen(process.env.PORT || port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });
