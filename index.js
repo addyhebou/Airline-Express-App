@@ -155,6 +155,23 @@ app.get('/staff/:id', async (req, res) => {
   }
 });
 
+// GET FLIGHT-SPECIFIC COMMENTS
+app.get('/comments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const airline = id['airline'] || ''; 
+    const date = id['date'] || ''; 
+    const time = id['time'] || ''; 
+    const staff = await pool.query(
+      'SELECT * from public.comments WHERE airline = $1 AND depature_date = $2 AND departure_time = $3',
+      [airline, date, time]
+    );
+    res.json(comments.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
 // GET AIRLINE-SPECIFIC AIRPLANES
 app.get('/airplanes/:id', async (req, res) => {
   try {
@@ -177,6 +194,24 @@ app.get('/flights/:airline', async (req, res) => {
     const flights = await pool.query(
       'SELECT * from public.flight WHERE airline = $1',
       [airline]
+    );
+    res.json(flights.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+//GET SPECIFIC FLIGHT -> CHANGE STATUS 
+app.put('/flights/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const airline = id['airline'] || ''; 
+    const date = id['date'] || ''; 
+    const time = id['time'] || ''; 
+    const newStatus = id['status'] || ''; 
+    const flights = await pool.query(
+      'UPDATE public.customer SET status = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
+      [newStatus, airline, date, time,]
     );
     res.json(flights.rows);
   } catch (error) {
@@ -218,6 +253,46 @@ app.put('/customers/:id', async (req, res) => {
     console.log(error.message);
   }
 });
+
+// UPDATE A RATING FOR FLIGHT
+app.put('/flights/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const airline = id['airline'] || ''; 
+    const date = id['date'] || ''; 
+    const time = id['time'] || ''; 
+    const newRating = id['rating'] || ''; 
+    // Make sure to edit the SQL
+    const flights = await pool.query(
+      'UPDATE public.flight SET rating = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
+      [newRating, airline, date, time,]
+    );
+    res.json('User was updated!');
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// ADD A COMMENT FOR FLIGHT
+app.put('/comments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const airline = id['airline'] || ''; 
+    const date = id['date'] || ''; 
+    const time = id['time'] || ''; 
+    const newComment = id['comment'] || ''; 
+    // Make sure to edit the SQL
+    const comments = await pool.query(
+      'UPDATE public.comments SET comment = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
+      [newComment, airline, date, time,]
+    );
+    res.json(comments.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+
 
 // DELETE A CUSTOMER
 app.delete('/customers/:id', async (req, res) => {
@@ -262,6 +337,21 @@ app.get('/customers/flights/:id', async (req, res) => {
     console.log(error.message);
   }
 });
+
+// Selecting TOP 3 destinations 
+app.get('/customers/flights/:id', async (req, res) => {
+  try {
+    const {id} = req.params;
+    const top3Query = await pool.query(
+      'SELECT puchased.to, count(*) as destinations FROM puchased GROUP BY puchased.to ORDER BY count(*) desc FETCH FIRST 3 ROWS ONLY',
+      [id]
+    );
+    res.json(top3Query.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
 
 // Calculating the total amount of money a customer spent on flights
 app.get('/customers/flights/:id', async (req, res) => {
