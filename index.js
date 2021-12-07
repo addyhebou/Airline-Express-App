@@ -30,7 +30,7 @@ app.post('/customers', async (req, res) => {
   }
 });
 
-// CREATE A AIRPLANE
+// CREATE AN AIRPLANE
 app.post('/airplanes', async (req, res) => {
   try {
     const airplane = req.body;
@@ -44,6 +44,38 @@ app.post('/airplanes', async (req, res) => {
     console.log(error.message);
   }
 });
+
+// CREATE A STAFF MEMBER
+app.post('/staff', async (req, res) => {
+  try {
+    const staffMem = req.body; // body input must be in SQL form
+    console.log(staffMem);
+    const newStaff = await pool.query(
+      'INSERT INTO public."staff" VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [staffMem.username, staffMem.password, staffMem.first_name, staffMem.last_name, staffMem.birth_date, staffMem.phone]
+    );
+
+    res.json(newStaff);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// CREATE AN AIRPORT
+app.post('/airport', async (req, res) => {
+  try {
+    const airport = req.body;
+    const newAirport = await pool.query(
+      'INSERT INTO public."airport" VALUES ($1, $2, $3) RETURNING *',
+      [airport.code, airport.name, airport.city]
+    );
+    res.json(newAirport);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// CREATE AN AIRPLANE
 
 // GET ALL CUSTOMERS
 app.get('/customers', async (req, res) => {
@@ -80,6 +112,16 @@ app.get('/airplanes', async (req, res) => {
   try {
     const airplane = await pool.query('SELECT * from public.airplane');
     res.json(airplane.rows);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
+
+// GET ALL AIRPORTS
+app.get('/airports', async (req, res) => {
+  try {
+    const airport = await pool.query('SELECT * from public.airport');
+    res.json(airport.rows);
   } catch (error) {
     console.log(error.message);
   }
