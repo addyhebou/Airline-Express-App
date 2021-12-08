@@ -75,7 +75,19 @@ app.post('/airport', async (req, res) => {
   }
 });
 
-// CREATE AN AIRPLANE
+// CREATE A FLIGHT
+app.post('/flights', async (req, res) => {
+  try {
+    const flight = req.body;
+    const newFlight = await pool.query(
+      'INSERT INTO public."flight" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+      [flight.flight_num, flight.plane_ID, flight.airline, flight.departure_date, flight.departure_time, flight.arrival_date, flight.arrival_time, flight.price, flight.status, flight.from, flight.to]
+    );
+    res.json(newFlight);
+  } catch (error) {
+    console.log(error.message);
+  }
+});
 
 // GET ALL CUSTOMERS
 app.get('/customers', async (req, res) => {
