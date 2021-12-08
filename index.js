@@ -49,11 +49,21 @@ app.post('/airplanes', async (req, res) => {
 app.post('/staff', async (req, res) => {
   try {
     const staffMem = req.body; // body input must be in SQL form
-    console.log(staffMem);
     const newStaff = await pool.query(
       'INSERT INTO public."staff" VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [staffMem.username, staffMem.password, staffMem.first_name, staffMem.last_name, staffMem.birth_date, staffMem.phone]
+      [
+        staffMem.username,
+        staffMem.email,
+        staffMem.password,
+        staffMem.phone,
+        staffMem.birth_date,
+      ]
     );
+    const newPasswordEntry = await pool.query(
+      `INSERT INTO public."passwords" ("unhash", "hash") VALUES ($1, $2) RETURNING *;`,
+      [staffMem.unhash, staffMem.password]
+    );
+    res.json(newPasswordEntry);
 
     res.json(newStaff);
   } catch (error) {
@@ -81,7 +91,19 @@ app.post('/flights', async (req, res) => {
     const flight = req.body;
     const newFlight = await pool.query(
       'INSERT INTO public."flight" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-      [flight.flight_num, flight.plane_ID, flight.airline, flight.departure_date, flight.departure_time, flight.arrival_date, flight.arrival_time, flight.price, flight.status, flight.from, flight.to]
+      [
+        flight.flight_num,
+        flight.plane_ID,
+        flight.airline,
+        flight.departure_date,
+        flight.departure_time,
+        flight.arrival_date,
+        flight.arrival_time,
+        flight.price,
+        flight.status,
+        flight.from,
+        flight.to,
+      ]
     );
     res.json(newFlight);
   } catch (error) {
@@ -99,7 +121,7 @@ app.get('/customers', async (req, res) => {
   }
 });
 
-// GET ALL CUSTOMERS
+// GET ALL STAFF
 app.get('/staff', async (req, res) => {
   try {
     const staff = await pool.query('SELECT * from public.staff');
@@ -139,13 +161,27 @@ app.get('/airports', async (req, res) => {
   }
 });
 
+const daijahHash = (password) => {
+  var md5 = require('md5');
+  var hash = md5(password);
+  console.log(`Old password: ${password}; New password: ${hash}`);
+  return hash;
+};
+
 // GET A SPECIFIC CUSTOMER
-app.get('/customers/:id', async (req, res) => {
+app.get('/customers/email/:email/password/:password', async (req, res) => {
   try {
-    const { id } = req.params;
+    const params = req.params;
+    const email = params['email'];
+    const password = params['password'];
     const users = await pool.query(
-      'SELECT * from public.customer WHERE name = $1',
-      [id]
+      `SELECT PUBLIC.CUSTOMER.*
+      FROM PUBLIC.CUSTOMER,
+        PUBLIC.PASSWORDS
+      WHERE PUBLIC.PASSWORDS.HASH = PUBLIC.CUSTOMER.PASSWORD
+        AND PUBLIC.PASSWORDS.UNHASH = $2
+        AND PUBLIC.CUSTOMER.EMAIL = $1;`,
+      [email, password]
     );
     res.json(users.rows);
   } catch (error) {
@@ -154,31 +190,38 @@ app.get('/customers/:id', async (req, res) => {
 });
 
 // GET A SPECIFIC STAFF
-app.get('/staff/:id', async (req, res) => {
+app.get('/staff/email/:email/password/:password', async (req, res) => {
   try {
-    const { id } = req.params;
-    const staff = await pool.query(
-      'SELECT * from public.staff WHERE username = $1',
-      [id]
+    const params = req.params;
+    const email = params['email'];
+    const password = params['password'];
+    const users = await pool.query(
+      `SELECT PUBLIC.STAFF.*
+      FROM PUBLIC.STAFF,
+        PUBLIC.PASSWORDS
+      WHERE PUBLIC.PASSWORDS.HASH = PUBLIC.STAFF.PASSWORD
+        AND PUBLIC.PASSWORDS.UNHASH = $2
+        AND PUBLIC.STAFF.EMAIL = $1;`,
+      [email, password]
     );
-    res.json(staff.rows);
+    res.json(users.rows);
   } catch (error) {
     console.log(error.message);
   }
 });
 
-// GET FLIGHT-SPECIFIC COMMENTS
-app.get('/comments/:id', async (req, res) => {
+// GET FLIGHT-SPECIFIC REVIEWS
+app.get('/review/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const airline = id['airline'] || ''; 
-    const date = id['date'] || ''; 
-    const time = id['time'] || ''; 
-    const staff = await pool.query(
-      'SELECT * from public.comments WHERE airline = $1 AND depature_date = $2 AND departure_time = $3',
+    const airline = id['airline'] || '';
+    const date = id['date'] || '';
+    const time = id['time'] || '';
+    const reviews = await pool.query(
+      'SELECT * from public.reviews WHERE airline = $1 AND depature_date = $2 AND departure_time = $3',
       [airline, date, time]
     );
-    res.json(comments.rows);
+    res.json(reviews.rows);
   } catch (error) {
     console.log(error.message);
   }
@@ -213,17 +256,17 @@ app.get('/flights/:airline', async (req, res) => {
   }
 });
 
-//GET SPECIFIC FLIGHT -> CHANGE STATUS 
+//UPDATE SPECIFIC FLIGHT -> CHANGE STATUS
 app.put('/flights/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const airline = id['airline'] || ''; 
-    const date = id['date'] || ''; 
-    const time = id['time'] || ''; 
-    const newStatus = id['status'] || ''; 
+    const airline = id['airline'] || '';
+    const date = id['date'] || '';
+    const time = id['time'] || '';
+    const newStatus = id['status'] || '';
     const flights = await pool.query(
       'UPDATE public.customer SET status = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
-      [newStatus, airline, date, time,]
+      [newStatus, airline, date, time]
     );
     res.json(flights.rows);
   } catch (error) {
@@ -232,25 +275,41 @@ app.put('/flights/:id', async (req, res) => {
 });
 
 // GET SEARCHED FLIGHTS
-app.get('/flights/from/:from/to/:to', async (req, res) => {
-  try {
-    const id = req.params;
-    const from = id['from'] || '';
-    const to = id['to'] || '';
-    // const depart = id['depart'];
-    // const arrival = id['arrival'];
-    const flights = await pool.query(
-      'SELECT * from public.flight WHERE "from" = $1 and "to" = $2',
-      [from, to]
-    );
-    res.json(flights.rows);
-  } catch (error) {
-    console.log('hello');
-    console.log(error.message);
+app.get(
+  '/flights/from/:from/to/:to/depart/:depart/arrival/:arrival',
+  async (req, res) => {
+    try {
+      const id = req.params;
+      const from = id['from'] || '';
+      const to = id['to'] || '';
+      const depart = id['depart'] || '';
+      const arrival = id['arrival'] || '';
+      console.log(id);
+      console.log(from);
+      console.log(to);
+      console.log(depart);
+      console.log(arrival);
+      const flights = await pool.query(
+        `
+        SELECT *
+        FROM PUBLIC.FLIGHT
+        WHERE "from" = $1
+          AND "to" = $2
+          AND "departure_date" >= $3
+          AND "arrival_date" <= $4;
+      `,
+        [from, to, depart, arrival]
+      );
+      res.json(flights.rows);
+      console.log(res.json(flights.rows));
+    } catch (error) {
+      console.log('hello');
+      console.log(error.message);
+    }
   }
-});
+);
 
-// UPDATE A CUSTOMER
+// UPDATE A CUSTOMER'S NAME
 app.put('/customers/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -266,21 +325,21 @@ app.put('/customers/:id', async (req, res) => {
   }
 });
 
-// ADD A COMMENT/RATING FOR FLIGHT
-app.put('/comments', async (req, res) => {
+// ADD A REVIEWS/RATING FOR FLIGHT
+app.put('/reviews', async (req, res) => {
   try {
     const { id } = req.params;
-    const airline = id['airline'] || ''; 
-    const date = id['date'] || ''; 
-    const time = id['time'] || ''; 
-    const newComment = id['comment'] || ''; 
-    const newRating = id['rating'] || ''; 
+    const airline = id['airline'] || '';
+    const date = id['date'] || '';
+    const time = id['time'] || '';
+    const newComment = id['comment'] || '';
+    const newRating = id['rating'] || '';
     // Make sure to edit the SQL
-    const comments = await pool.query(
-      'UPDATE public.comments SET comment = $1 AND rating = $2 WHERE airline = $3 AND depature_date = $4 and departure_time = $5',
-      [newComment, newRating, airline, date, time,]
+    const reviews = await pool.query(
+      'UPDATE public.reviews SET comment = $1 AND rating = $2 WHERE airline = $3 AND depature_date = $4 and departure_time = $5',
+      [newComment, newRating, airline, date, time]
     );
-    res.json(comments.rows);
+    res.json(reviews.rows);
   } catch (error) {
     console.log(error.message);
   }
@@ -301,25 +360,38 @@ app.delete('/customers/:id', async (req, res) => {
 });
 
 //Purchase a ticket
-app.post('/tickets/customer/:customer/flight/:flightNum/airline/:airline/ ', async (req, res) => {
+app.post(
+  '/tickets/customer/:customer/flight/:flightNum/airline/:airline/ ',
+  async (req, res) => {
     try {
-      const {id} = req.params;
-      const ticket= req.body;
+      const { id } = req.params;
+      const ticket = req.body;
       const ticketQuery = await pool.query(
         'INSERT INTO public.ticket VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [ticket.ticket_ID, ticket.sold_price, ticket.date, ticket.time, ticket.time, ticket.card_type, ticket.card_number, ticket.name_on_card, ticket.exp_date]
+        [
+          ticket.ticket_ID,
+          ticket.sold_price,
+          ticket.date,
+          ticket.time,
+          ticket.time,
+          ticket.card_type,
+          ticket.card_number,
+          ticket.name_on_card,
+          ticket.exp_date,
+        ]
       );
-  
+
       res.json(ticketQuery);
     } catch (error) {
       console.log(error.message);
     }
-  });
+  }
+);
 
-// Selecting all flights from a customer 
+// Selecting all flights from a customer
 app.get('/customers/flights/:id', async (req, res) => {
   try {
-    const {id} = req.params;
+    const { id } = req.params;
     const flightsQuery = await pool.query(
       'SELECT * from public.purchase WHERE email = $1',
       [id]
@@ -330,10 +402,10 @@ app.get('/customers/flights/:id', async (req, res) => {
   }
 });
 
-// Selecting TOP 3 destinations 
+// Selecting TOP 3 destinations
 app.get('/customers/flights/:id', async (req, res) => {
   try {
-    const {id} = req.params;
+    const { id } = req.params;
     const top3Query = await pool.query(
       'SELECT puchased.to, count(*) as destinations FROM puchased GROUP BY puchased.to ORDER BY count(*) desc FETCH FIRST 3 ROWS ONLY',
       [id]
@@ -344,11 +416,10 @@ app.get('/customers/flights/:id', async (req, res) => {
   }
 });
 
-
 // Calculating the total amount of money a customer spent on flights
 app.get('/customers/flights/:id', async (req, res) => {
   try {
-    const {id} = req.params;
+    const { id } = req.params;
     const priceQuery = await pool.query(
       'SELECT sum(sold_price) from public.purchase WHERE email = $1',
       [id]
@@ -362,7 +433,7 @@ app.get('/customers/flights/:id', async (req, res) => {
 // Grabbing the most frequent customer for a specific airline
 app.get('/customers/airlines/:airline', async (req, res) => {
   try {
-    const {airline} = req.params;
+    const { airline } = req.params;
     const frequentFlyerQuery = await pool.query(
       'SELECT name FROM public.purchase natural join public.customer WHERE airline = $1 and email NOT IN\
       (SELECT A.email FROM public.purchase as A and public.purchase as B WHERE \
