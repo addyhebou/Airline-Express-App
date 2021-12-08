@@ -211,14 +211,14 @@ app.get('/staff/email/:email/password/:password', async (req, res) => {
 });
 
 // GET FLIGHT-SPECIFIC REVIEWS
-app.get('/review/:id', async (req, res) => {
+app.get('/review/airline/:airline/date/:/date/time/:time', async (req, res) => {
   try {
     const { id } = req.params;
     const airline = id['airline'] || '';
     const date = id['date'] || '';
     const time = id['time'] || '';
     const reviews = await pool.query(
-      'SELECT * from public.reviews WHERE airline = $1 AND depature_date = $2 AND departure_time = $3',
+      'SELECT * from public.reviews WHERE airline = $1 AND departure_date = $2 AND departure_time = $3',
       [airline, date, time]
     );
     res.json(reviews.rows);
@@ -265,7 +265,7 @@ app.put('/flights/:id', async (req, res) => {
     const time = id['time'] || '';
     const newStatus = id['status'] || '';
     const flights = await pool.query(
-      'UPDATE public.customer SET status = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
+      'UPDATE public.customer SET status = $1 WHERE airline = $2 AND departure_date = $3 and departure_time = $4',
       [newStatus, airline, date, time]
     );
     res.json(flights.rows);
@@ -326,7 +326,7 @@ app.put('/customers/:id', async (req, res) => {
 });
 
 // ADD A REVIEWS/RATING FOR FLIGHT
-app.put('/reviews', async (req, res) => {
+app.put('/reviews/airline/:airline/date/:date/time/:time', async (req, res) => {
   try {
     const { id } = req.params;
     const airline = id['airline'] || '';
@@ -336,7 +336,7 @@ app.put('/reviews', async (req, res) => {
     const newRating = id['rating'] || '';
     // Make sure to edit the SQL
     const reviews = await pool.query(
-      'UPDATE public.reviews SET comment = $1 AND rating = $2 WHERE airline = $3 AND depature_date = $4 and departure_time = $5',
+      'UPDATE public.reviews SET comment = $1 AND rating = $2 WHERE airline = $3 AND departure_date = $4 and departure_time = $5',
       [newComment, newRating, airline, date, time]
     );
     res.json(reviews.rows);
@@ -407,7 +407,7 @@ app.get('/customers/flights/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const top3Query = await pool.query(
-      'SELECT puchased.to, count(*) as destinations FROM puchased GROUP BY puchased.to ORDER BY count(*) desc FETCH FIRST 3 ROWS ONLY',
+      'SELECT count(flight.to) as destinations FROM purchased NATURAL JOIN ticket NATURAL JOIN flight GROUP BY flight.to ORDER BY count(flight.to) desc FETCH FIRST 3 ROWS ONLY ',
       [id]
     );
     res.json(top3Query.rows);
