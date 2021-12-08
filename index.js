@@ -254,26 +254,7 @@ app.put('/customers/:id', async (req, res) => {
   }
 });
 
-// UPDATE A RATING FOR FLIGHT
-app.put('/flights/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const airline = id['airline'] || ''; 
-    const date = id['date'] || ''; 
-    const time = id['time'] || ''; 
-    const newRating = id['rating'] || ''; 
-    // Make sure to edit the SQL
-    const flights = await pool.query(
-      'UPDATE public.flight SET rating = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
-      [newRating, airline, date, time,]
-    );
-    res.json('User was updated!');
-  } catch (error) {
-    console.log(error.message);
-  }
-});
-
-// ADD A COMMENT FOR FLIGHT
+// ADD A COMMENT/RATING FOR FLIGHT
 app.put('/comments', async (req, res) => {
   try {
     const { id } = req.params;
@@ -281,18 +262,17 @@ app.put('/comments', async (req, res) => {
     const date = id['date'] || ''; 
     const time = id['time'] || ''; 
     const newComment = id['comment'] || ''; 
+    const newRating = id['rating'] || ''; 
     // Make sure to edit the SQL
     const comments = await pool.query(
-      'UPDATE public.comments SET comment = $1 WHERE airline = $2 AND depature_date = $3 and departure_time = $4',
-      [newComment, airline, date, time,]
+      'UPDATE public.comments SET comment = $1 AND rating = $2 WHERE airline = $3 AND depature_date = $4 and departure_time = $5',
+      [newComment, newRating, airline, date, time,]
     );
     res.json(comments.rows);
   } catch (error) {
     console.log(error.message);
   }
 });
-
-
 
 // DELETE A CUSTOMER
 app.delete('/customers/:id', async (req, res) => {
