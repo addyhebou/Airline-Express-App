@@ -265,7 +265,7 @@ app.put('/flights/:id', async (req, res) => {
     const time = id['time'] || '';
     const newStatus = id['status'] || '';
     const flights = await pool.query(
-      'UPDATE public.customer SET status = $1 WHERE airline = $2 AND departure_date = $3 and departure_time = $4',
+      'UPDATE public.flight SET status = $1 WHERE airline = $2 AND departure_date = $3 and departure_time = $4',
       [newStatus, airline, date, time]
     );
     res.json(flights.rows);
